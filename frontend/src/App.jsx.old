@@ -1,0 +1,97 @@
+import { useEffect, useState } from 'react';
+import { ethers } from 'ethers';
+import { Button } from '@/components/ui/button';
+import contractAddress from '@/contracts/contract-address.json';
+import contractArtifact from '@/contracts/JobMarketplace.json';
+
+function App() {
+  const TEST_USERNAME = "Thuan Nguyen";
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [currentAccount, setCurrentAccount] = useState(null);
+  const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
+
+  useEffect(() => {
+    const checkMetaMaskInstallation = () => {
+      if (typeof window.ethereum !== 'undefined') {
+        setIsMetaMaskInstalled(true);
+      } else {
+        console.error("MetaMask is not installed!");
+      }
+    };
+
+    checkMetaMaskInstallation();
+  }, []);
+
+  const connectWallet = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        console.dir(ethers)
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const { chainId } = await provider.getNetwork();
+        console.log('Connected to chain ID:', chainId);
+
+        if (chainId !== 31337 || chainId !== '31337' || chainId !== '31337n') {
+          console.error('Incorrect network. Please connect to the Hardhat network.');
+          return;
+        }
+
+        setProvider(provider);
+        const signer = provider.getSigner();
+        setSigner(signer);
+        const accounts = await provider.listAccounts();
+        console.log('Accounts are:', accounts);
+        setCurrentAccount(accounts[0]);
+      } catch (error) {
+        console.error("Error connecting to MetaMask:", error);
+      }
+    } else {
+      console.error("MetaMask is not installed!");
+    }
+  };
+
+  const handleTestBtn = async () => {
+    if (!provider || !signer || !currentAccount) {
+      console.error("Ethers not initialized properly or MetaMask not connected.");
+      return;
+    }
+
+    try {
+      console.log('Contract Address:', contractAddress.JobMarketplace);
+      console.log('Contract ABI:', contractArtifact.abi);
+
+      const contract = new ethers.Contract(
+        contractAddress.JobMarketplace,
+        contractArtifact.abi,
+        signer
+      );
+
+      const transaction = await contract.registerUser(TEST_USERNAME);
+      await transaction.wait();
+
+      console.log('User registered:', transaction);
+    } catch (error) {
+      console.error("Error registering user:", error);
+    }
+  };
+
+  return (
+    <>
+      {isMetaMaskInstalled ? (
+        <>
+          <Button onClick={connectWallet}>
+            {currentAccount ? `Connected: ${currentAccount}` : 'Connect MetaMask'}
+          </Button>
+          {currentAccount && (
+            <Button onClick={handleTestBtn}>Register Current user</Button>
+          )}
+        </>
+      ) : (
+        <p>Please install MetaMask to use this feature.</p>
+      )}
+    </>
+  );
+}
+
+export default App;
